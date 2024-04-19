@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <dirent.h>
 #include <omp.h> // Librería para paralelización
@@ -14,39 +15,57 @@ void main()
         2) Se cree otra carpeta con las imagenes modificadas
     */
 
-    // Función principal
-    // 1) Abrir carpeta con las imagenes originales
-    // y leer todos los archivos en un ciclo
-
-    FILE *image, *outputImage_Blurred;
-    image = fopen("blackbuck.bmp", "rb");
-    // Asignamos un formato a los espacios reservados para las imágenes
-    outputImage_Blurred = fopen("blurredImages/GrayScale.bmp", "wb"); // Espacio para imagen en escala de grises
-    long ancho;
-    long alto;
-    unsigned char r, g, b; // Pixels (b,g,r) 8 bits
-    unsigned char pixel;   // 8 bits
-
-    // 2) Crear una nueva carpeta y updatear los archivos
+    // 1) Crear una nueva carpeta y updatear los archivos
 
     outputImagesFolder();
 
-    //     //Numero de hilos asignados
-    //     omp_set_num_threads(2);
+    // 2) Abrir carpeta con las imagenes originales  y leer todos los archivos en un ciclo
 
-    //     unsigned char cabecera[54];
-    //     for (int i = 0; i < 54; i++)
-    //     {
-    //         cabecera[i] = fgetc(image);
-    //         fputc(cabecera[i], outputImage_GrayScale); // Copia cabecera a nueva imagen
-    //         fputc(cabecera[i], outputImage_Flip_vertical);
-    //         fputc(cabecera[i], outputImage_Flip_horizontal);
-    //     }
+    DIR *dir;
+    dir = opendir("originalImages");
+    struct dirent *currentfile;
+    if (dir == NULL)
+    {
+        printf("Error al abrir el directorio");
+    }
+    /* Leyendo uno a uno todos los archivos que hay */
+    while ((currentfile = readdir(dir)) != NULL)
+    {
+        /* Nos devolverá el directorio actual (.) y el anterior (..), como hace ls */
+        if ((strcmp(currentfile->d_name, ".") != 0) && (strcmp(currentfile->d_name, "..") != 0))
+        {
+            // Numero de hilos asignados
+            omp_set_num_threads(2);
 
-    //     ancho = (long)cabecera[20] * 65536 + (long)cabecera[19] * 256 + (long)cabecera[18];
-    //     alto = (long)cabecera[24] * 65536 + (long)cabecera[23] * 256 + (long)cabecera[22];
-    //     printf("largo img %li\n", alto);
-    //     printf("ancho img %li\n", ancho);
+            char inputfileName[300]; //300 bytes porque 1 char = 1 byte
+            char outputfileName[300]; //300 bytes porque 1 char = 1 byte
+            sprintf(inputfileName, "originalImages/%s", currentfile->d_name);
+            sprintf(outputfileName, "blurredImages/%s", currentfile->d_name);
+            printf("Nombre del archivo %s---------------\n", inputfileName);
+
+            FILE *image, *outputImage_Blurred;
+            image = fopen(inputfileName, "rb");
+            // Asignamos un formato a los espacios reservados para las imágenes
+            outputImage_Blurred = fopen(outputfileName, "wb"); // Espacio para output image
+            long ancho;
+            long alto;
+            unsigned char r, g, b; // Pixels (b,g,r) 8 bits
+            unsigned char pixel;   // 8 bits
+
+            unsigned char cabecera[54];
+            for (int i = 0; i < 54; i++)
+            {
+                cabecera[i] = fgetc(image);              // Image es la imagen actual
+                fputc(cabecera[i], outputImage_Blurred); // Copia cabecera a nueva imagen
+            }
+
+            ancho = (long)cabecera[20] * 65536 + (long)cabecera[19] * 256 + (long)cabecera[18];
+            alto = (long)cabecera[24] * 65536 + (long)cabecera[23] * 256 + (long)cabecera[22];
+            printf("largo img %li\n", alto);
+            printf("ancho img %li\n", ancho);
+        }
+    }
+    closedir(dir);
 
     //     //DIMENSIONES MANUALES
     //     int alto_N = alto; //Preguntar por que se pudo almacenar un long long en un int
@@ -127,7 +146,7 @@ void main()
     //     free(tmp_pixel_vector);
     //     free(tmp_flip_V_vector);
     //     fclose(image);
-    fclose(outputImage_Blurred);
+    // fclose(outputImage_Blurred);
     //     fclose(outputImage_Flip_horizontal);
     //     fclose(outputImage_Flip_vertical);
     // closedir(dir);
@@ -165,3 +184,6 @@ void outputImagesFolder()
         printf("Directory '%s' created successfully.\n", newfolder);
     }
 }
+
+/* Nos devolverá el directorio actual (.) y el anterior (..), como hace ls */
+// TO DO linea 36 infvestigar a que se refiere
