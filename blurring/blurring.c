@@ -6,6 +6,7 @@
 #include <omp.h> // Librería para paralelización
 // Declaración del prototipo de la función
 void outputImagesFolder();
+void blurreImageFunction(char* inputfileName, char* outputfileName, char* currentFileName);
 
 void main()
 {
@@ -35,113 +36,23 @@ void main()
         if ((strcmp(currentfile->d_name, ".") != 0) && (strcmp(currentfile->d_name, "..") != 0))
         {
             // Numero de hilos asignados
-            omp_set_num_threads(2);
+            omp_set_num_threads(1);
 
-            char inputfileName[300]; //300 bytes porque 1 char = 1 byte
-            char outputfileName[300]; //300 bytes porque 1 char = 1 byte
+            // Currentfile name
+            char inputfileName[300];  // 300 bytes porque 1 char = 1 byte
+            char outputfileName[300]; // 300 bytes porque 1 char = 1 byte
+            char currentfilename[300]; // 300 bytes porque 1 char = 1 byte
             sprintf(inputfileName, "originalImages/%s", currentfile->d_name);
-            sprintf(outputfileName, "blurredImages/%s", currentfile->d_name);
+            sprintf(outputfileName, "blurredImages/blurred%s", currentfile->d_name);
+            sprintf(currentfilename, "%s",currentfile->d_name);
             printf("Nombre del archivo %s---------------\n", inputfileName);
 
-            FILE *image, *outputImage_Blurred;
-            image = fopen(inputfileName, "rb");
-            // Asignamos un formato a los espacios reservados para las imágenes
-            outputImage_Blurred = fopen(outputfileName, "wb"); // Espacio para output image
-            long ancho;
-            long alto;
-            unsigned char r, g, b; // Pixels (b,g,r) 8 bits
-            unsigned char pixel;   // 8 bits
-
-            unsigned char cabecera[54];
-            for (int i = 0; i < 54; i++)
-            {
-                cabecera[i] = fgetc(image);              // Image es la imagen actual
-                fputc(cabecera[i], outputImage_Blurred); // Copia cabecera a nueva imagen
-            }
-
-            ancho = (long)cabecera[20] * 65536 + (long)cabecera[19] * 256 + (long)cabecera[18];
-            alto = (long)cabecera[24] * 65536 + (long)cabecera[23] * 256 + (long)cabecera[22];
-            printf("largo img %li\n", alto);
-            printf("ancho img %li\n", ancho);
+            // Lógica principal
+            blurreImageFunction(inputfileName, outputfileName, currentfilename);
         }
     }
+
     closedir(dir);
-
-    //     //DIMENSIONES MANUALES
-    //     int alto_N = alto; //Preguntar por que se pudo almacenar un long long en un int
-    //     int ancho_N = ancho;
-    //     long dimension_vector =  ancho_N * alto_N; //Cantidad total de pixeles RGB
-
-    //     //Se reserva memoria considerando que cada pixel es RGB y ocupa 8 bits
-    //     unsigned char* tmp_pixel_vector = malloc(((dimension_vector)*3)*sizeof (unsigned char));
-    //     //Vector usado para guardar temporalmente el vector girado verticalmente
-    //     unsigned char* tmp_flip_V_vector = malloc(((dimension_vector)*3)*sizeof (unsigned char)); //[0,255].
-
-    //     if(tmp_pixel_vector == NULL || tmp_flip_V_vector == NULL )
-    //     {
-    //         printf("Error! Memory not allocated.");
-    //         exit(0);
-    //     }
-
-    // //Uso de clausulas para eliminar "Race condition"
-    // #pragma omp parallel
-    //     {
-    //         #pragma omp for schedule(dynamic)
-    //         //LECTURA
-    //         for (int i = 0; i < dimension_vector; i++)
-    //         {
-    //             // Debe ser ejecutado solo por un solo thread PREGUNTAR COMO SE PUEDE DYNAMIC Y CRITICAL
-    //             //#pragma omp region {} no fue utilizado ya que agrega mas ruido a la imagen
-    //             #pragma omp critical //Critical por que solo un hilo puede modificar estas variables
-    //             b = fgetc(image);
-    //             #pragma omp critical
-    //             g = fgetc(image);
-    //             #pragma omp critical
-    //             r = fgetc(image);
-
-    //             //Conversion a escala de Grises
-    //             pixel = 0.21 * r + 0.72 * g + 0.07 * b;
-
-    //             tmp_pixel_vector [i] = pixel;
-    //             tmp_pixel_vector [i+1] = pixel;
-    //             tmp_pixel_vector [i+2] = pixel;
-    //         }
-
-    //         //Imagen en escala de grises (o no) sin rotacion
-    //         #pragma omp for schedule(dynamic)
-    //         for (int i = 0; i < dimension_vector*3; i++)
-    //         {
-    //             fputc(tmp_pixel_vector[i], outputImage_GrayScale);
-    //             fputc(tmp_pixel_vector[i+1], outputImage_GrayScale);
-    //             fputc(tmp_pixel_vector[i+2], outputImage_GrayScale);
-    //         }
-
-    //         //Rotado horizontalmente sobre su eje de simetria
-    //         #pragma omp for schedule(dynamic)
-    //         for (int i = dimension_vector; i > 0; i--)
-    //         {
-    //             fputc(tmp_pixel_vector[(i)], outputImage_Flip_horizontal);
-    //             fputc(tmp_pixel_vector[(i-1)], outputImage_Flip_horizontal);
-    //             fputc(tmp_pixel_vector[(i-2)], outputImage_Flip_horizontal);
-    //         }
-
-    //         //Rotado verticalmente sobre su eje de simetria
-    //         #pragma omp for schedule(dynamic) collapse(2)
-    //         for (int i = 0; i < (alto_N); i++)
-    //         {
-    //             for (int j = 0; j < (ancho_N); j++)
-    //             {
-    //                 tmp_flip_V_vector [j+(ancho_N*i)] = tmp_pixel_vector [(ancho_N-j)+(i*ancho_N)];
-    //                 tmp_flip_V_vector [(j+(ancho_N*i))+1]=  tmp_pixel_vector [((ancho_N-j)+(i*ancho_N))-1];
-    //                 tmp_flip_V_vector [(j+(ancho_N*i))+2]=  tmp_pixel_vector [((ancho_N-j)+(i*ancho_N))-2];
-
-    //                 fputc(tmp_flip_V_vector[j+(ancho_N*i)], outputImage_Flip_vertical);
-    //                 fputc(tmp_flip_V_vector[(j+(ancho_N*i) - 1)], outputImage_Flip_vertical);
-    //                 fputc(tmp_flip_V_vector[(j+(ancho_N*i) - 2)], outputImage_Flip_vertical);
-
-    //             }
-    //         }
-    //     }
 
     //     free(tmp_pixel_vector);
     //     free(tmp_flip_V_vector);
@@ -185,5 +96,81 @@ void outputImagesFolder()
     }
 }
 
+void blurreImageFunction(char* inputfileName, char* outputfileName, char* currentFileName)
+{
+
+    FILE *image, *outputImage_Blurred;
+    image = fopen(inputfileName, "rb");
+    // Asignamos un formato a los espacios reservados para las imágenes
+    outputImage_Blurred = fopen(outputfileName, "wb"); // Espacio para output image
+    long ancho;
+    long alto;
+    unsigned char r, g, b; // Pixels (b,g,r) 8 bits
+    unsigned char pixel;   // 8 bits
+
+    unsigned char cabecera[54];
+    for (int i = 0; i < 54; i++)
+    {
+        cabecera[i] = fgetc(image);              // Image es la imagen actual
+        fputc(cabecera[i], outputImage_Blurred); // Copia cabecera a nueva imagen
+    }
+
+    ancho = (long)cabecera[20] * 65536 + (long)cabecera[19] * 256 + (long)cabecera[18];
+    alto = (long)cabecera[24] * 65536 + (long)cabecera[23] * 256 + (long)cabecera[22];
+    printf("largo img %li\n", alto);
+    printf("ancho img %li\n", ancho);
+
+    long imageDimensions = ancho * alto; // Cantidad total de pixeles RGB y esto es un vector
+
+    // Se reserva memoria considerando que cada pixel es RGB (por eso x3) y ocupa 8 bits
+    unsigned char *tmp_pixel_vector = malloc(((imageDimensions) * 3) * sizeof(unsigned char));
+    // Vector usado para guardar temporalmente el vector modificado/manipulado
+    unsigned char *tmp_blurred_vector = malloc(((imageDimensions) * 3) * sizeof(unsigned char)); //(imageDimensions)*3 rgb
+
+    if (tmp_pixel_vector == NULL || tmp_blurred_vector == NULL)
+    {
+        printf("Error! Memory not allocated.");
+        exit(0);
+    }
+
+#pragma omp parallel
+    {
+#pragma omp for schedule(dynamic)
+        // LECTURA
+        for (int i = 0; i < imageDimensions * 3; i++) // por que cada +1 es como recorrer 3chars porque 1 long son 8 bytes
+        {
+            // Debe ser ejecutado solo por un solo thread PREGUNTAR COMO SE PUEDE DYNAMIC Y CRITICAL
+#pragma omp critical // Critical por que solo un hilo puede modificar estas variables
+            b = fgetc(image);
+#pragma omp critical
+            g = fgetc(image);
+#pragma omp critical
+            r = fgetc(image);
+            // printf("i: %li\t", sizeof(i)); //i recorre 4 bytes 32 bits
+            // printf("r|g|b: %ld\t", sizeof(b)); //rgb miden 1 byte
+
+            // Conversion a escala de Grises
+            pixel = 0.21 * r + 0.72 * g + 0.07 * b; // 1 byte
+
+            tmp_pixel_vector[i] = pixel;
+            tmp_pixel_vector[i + 1] = pixel; //
+            tmp_pixel_vector[i + 2] = pixel;
+            // tmp_pixel_vector [i+3] = pixel;
+            //  de los 4 byes i = los primeros 8 bits, i + 1 = los siguientes 8 bits, i +2 = los siguientes 8 bits 24 bits
+        }
+// Imagen en escala de grises (o no) sin rotaciomn
+#pragma omp for schedule(dynamic)
+        for (int i = 0; i < imageDimensions * 3; i++) // eran altoxancho pixeles = 24 bits
+        {
+            fputc(tmp_pixel_vector[i], outputImage_Blurred);
+            fputc(tmp_pixel_vector[i + 1], outputImage_Blurred);
+            fputc(tmp_pixel_vector[i + 2], outputImage_Blurred);
+        }
+    }
+    free(tmp_pixel_vector);
+    free(tmp_blurred_vector);
+    fclose(image);
+    fclose(outputImage_Blurred);
+}
 /* Nos devolverá el directorio actual (.) y el anterior (..), como hace ls */
 // TO DO linea 36 infvestigar a que se refiere
